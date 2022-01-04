@@ -1,0 +1,72 @@
+
+#Store original sequence file name for script readability
+infile="$1"
+
+#Trimmed file name extension
+trimExt='.trim'
+
+#Trimmed file name
+trimFile="$infile$trimExt"
+
+#Trim sequence names down to first field
+awk '{ print ($1 ~ /^>/ ? $1 : $0) }' "$infile" > "$trimFile"
+
+#Aligned sequence file extension
+alignExt='.afa'
+
+#Aligned sequence file name for MUSCLE output
+alignFile="$infile$alignExt"
+
+#Align Sequences
+muscle3.8.31_i86linux64 -in "$trimFile" -out "$alignFile"
+
+#Clean up gaps
+Gblocks "$alignFile" -t=d -b5=h
+
+#Cleaned file extension
+cleanExt='-gb'
+
+#Store cleaned file name
+cleanFile="$alignFile$cleanExt"
+
+#Appended info file ext
+appExt='.app'
+
+#Pre Phyml file name
+prePhyFile="$cleanFile$appExt"
+
+#HTM extension
+htmExt='.htm'
+
+#Count number of sequences
+numSeq=$(grep -oP '(?<=sequences: <b>).*?(?=<)' < "$cleanFile$htmExt")
+lenSeq=$(grep -oP '(?<=positions: <b>).*?(?=<)' < "$cleanFile$htmExt")
+
+echo $numSeq $lenSeq > "$prePhyFile"
+cat "$cleanFile" >> "$prePhyFile"
+
+phyml -i "$prePhyFile" -d nt --sequential
+
+phyExt="_phyml_tree.txt"
+
+phyFile="$prePhyFile$phyExt"
+
+phyApp="$phyFile$appExt"
+
+echo $numSeq $lenSeq > "$phyApp"
+cat "$phyFile" >> "$phyApp"
+
+mcmctree mcmctree3.ctl
+
+mv out.BV ./in.BV
+
+mcmctree mcmctree2.ctl
+
+
+
+printf "\n"
+echo "Original input file is" $infile
+echo "Trimmed file is" $trimFile
+echo "Alignment output for" $infile "stored in" $alignFile
+echo "Cleaned Alignement stored in" $cleanFile
+printf "\n"
